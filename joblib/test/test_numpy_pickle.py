@@ -286,6 +286,8 @@ def test_compressed_pickle_python_2_3_compatibility():
                       for bname in basenames]
 
     for fname in data_filenames:
+        import sys
+        sys.stderr.write('fname: %s\n' % fname)
         version_match = re.match(r'.+py(\d)(\d).gz', fname)
         python_version_used_for_writing = tuple(
             [int(each) for each in version_match.groups()])
@@ -305,10 +307,10 @@ def test_compressed_pickle_python_2_3_compatibility():
             result_list = numpy_pickle.load(fname)
             for result, expected in zip(result_list, expected_list):
                 if isinstance(expected, np.ndarray):
-                    nose.tools.assert_equal(result.dtype, expected.dtype)
-                    np.testing.assert_equal(result, expected)
+                    yield nose.tools.assert_equal, result.dtype, expected.dtype
+                    yield np.testing.assert_equal, result, expected
                 else:
-                    nose.tools.assert_equal(result, expected)
+                    yield nose.tools.assert_equal, result, expected
         else:
             # For joblib <= 0.8.4 compressed pickles written with
             # python `version = v` can not be read by python with
@@ -320,8 +322,7 @@ def test_compressed_pickle_python_2_3_compatibility():
                 raise AssertionError('Numpy pickle loading should '
                                      'have raised a ValueError exception')
             except ValueError as e:
-                nose.tools.assert_true(
-                    'unsupported pickle protocol' in str(e.args))
+                yield nose.tools.assert_true, 'unsupported pickle protocol' in str(e.args)
 
 
 ################################################################################
