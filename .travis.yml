@@ -8,6 +8,7 @@ matrix:
     - python: "3.4"
     - python: "3.4"
       env: WITHOUT_NUMPY="true"
+    - python: "3.5"
 
 before_install:
     - pip --quiet install --use-mirrors numpy
