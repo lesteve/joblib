@@ -10,9 +10,6 @@ matrix:
       env: WITHOUT_NUMPY="true"
     - python: "3.5"
 
-before_install:
-    - pip --quiet install --use-mirrors numpy
-
 install:
     - source continuous_integration/install.sh
 
