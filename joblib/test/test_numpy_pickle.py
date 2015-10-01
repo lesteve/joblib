@@ -327,6 +327,16 @@ def test_compressed_pickle_python_2_3_compatibility():
                     nose.tools.assert_equal(result.dtype, expected.dtype)
                     np.testing.assert_equal(result, expected)
                 else:
+                    PY3 = sys.version_info[0] >= 3
+                    # So here it goes for the explanation: bytes saved
+                    # on the python 2.7 side are loaded as str in
+                    # python 3. Another edge case 0.8.4 pickles were
+                    # using the default protocol so for python 3 they
+                    # were written with the bytes marker and we need
+                    # to decode the bytes.
+                    if (PY3 and isinstance(expected, bytes) and
+                            not ('0.8.4' in fname and 'py3' in fname)):
+                        expected = expected.decode('latin1')
                     nose.tools.assert_equal(result, expected)
         else:
             # For joblib <= 0.8.4 compressed pickles written with

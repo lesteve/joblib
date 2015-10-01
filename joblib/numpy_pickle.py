@@ -322,20 +322,30 @@ class NumpyUnpickler(Unpickler):
             np = None
         self.np = np
 
+        # TODO: putting isolatin1 here, is that the right thing to do
         if PY3:
-            self.encoding = 'bytes'
+            self.encoding = 'latin1'
 
     # Python 3.2 and 3.3 do not support encoding=bytes so I copied
     # _decode_string, load_string, load_binstring and
     # load_short_binstring from python 3.4 to emulate this
     # functionality
-    if PY3 and sys.version_info.minor < 4:
+    if PY3:  # and sys.version_info.minor < 4:
         def _decode_string(self, value):
             """Copied from python 3.4 pickle.Unpickler._decode_string"""
             # Used to allow strings from Python 2 to be decoded either as
             # bytes or Unicode strings.  This should be used only with the
             # STRING, BINSTRING and SHORT_BINSTRING opcodes.
-            if self.encoding == "bytes":
+
+            # Complete heuristic right now
+            numpy_array_context = (
+                self.np is not None and len(self.stack) > 6 and
+                isinstance(self.stack[-6], self.np.ndarray) and
+                self.stack[-6].size == 0)
+            # if numpy_array_context:
+            #     print(value)
+            #     print(self.stack)
+            if self.encoding == "bytes" or numpy_array_context:
                 return value
             else:
                 return value.decode(self.encoding, self.errors)
