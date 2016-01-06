@@ -407,7 +407,7 @@ def test_exception_dispatch():
     "Make sure that exception raised during dispatch are indeed captured"
     assert_raises(
             ValueError,
-            Parallel(n_jobs=2, pre_dispatch=16, verbose=0),
+            Parallel(n_jobs=2, pre_dispatch=16, verbose=49),
                     (delayed(exception_raiser)(i) for i in range(30)),
             )
 
@@ -417,7 +417,7 @@ def test_nested_exception_dispatch():
     # propagated.
     assert_raises(
         JoblibException,
-        Parallel(n_jobs=2, pre_dispatch=16, verbose=0),
+        Parallel(n_jobs=2, pre_dispatch=16, verbose=49),
         (delayed(SafeFunction(exception_raiser))(i) for i in range(30)))
 
 
