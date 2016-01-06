@@ -33,7 +33,7 @@ test_script:
   # Change to a non-source folder to make sure we run the tests on the
   # installed library.
   - "cd C:\\"
-  - "python -c \"import nose; nose.main()\" -v -s joblib"
+  - "python -c \"import nose; nose.main()\" -v -s joblib -m test_error_capture"
 
 artifacts:
   # Archive the generated wheel package in the ci.appveyor.com build report.
