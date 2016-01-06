@@ -718,6 +718,7 @@ class Parallel(Logger):
             if len(self._jobs) == 0:
                 # Wait for an async callback to dispatch new jobs
                 time.sleep(0.01)
+                sys.stderr.write('sleeping\n')
                 continue
             # We need to be careful: the job list can be filling up as
             # we empty it and Python list are not thread-safe by default hence

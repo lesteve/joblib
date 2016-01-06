@@ -71,8 +71,11 @@ class MyExceptionWithFinickyInit(Exception):
 
 
 def exception_raiser(x, custom_exception=False):
+    sys.stderr.write('pid: {0}\n'.format(os.getpid()))
     sys.stderr.write('x: {0}\n'.format(x))
     sys.stderr.write('custom_exception: {0}\n'.format(custom_exception))
+    sys.stderr.write('-'*80 + '\n')
+
     if x == 7:
         raise (MyExceptionWithFinickyInit('a', 'b', 'c', 'd')
                if custom_exception else ValueError)
