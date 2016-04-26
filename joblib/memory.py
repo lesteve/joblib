@@ -97,6 +97,24 @@ def _cache_key_to_dir(cachedir, func, argument_hash):
     return os.path.join(*parts)
 
 
+def _write_usage_stats(dirname):
+    """Write usage statistics."""
+    import datetime
+
+    filename = os.path.join(dirname, 'usage_stats.txt')
+    timestamp = datetime.datetime.now().isoformat() + '\n'
+
+    try:
+        with open(filename, 'a') as fp:
+            fp.write(timestamp)
+    except Exception:
+        raise
+        # that means something must be writing to it at the same time
+        # so this is used quite a lot, we can just ignore this usage
+        # without too much impact
+        pass
+
+
 def _load_output(output_dir, func_name, timestamp=None, metadata=None,
                  mmap_mode=None, verbose=0):
     """Load output of a computation."""
@@ -130,7 +148,10 @@ def _load_output(output_dir, func_name, timestamp=None, metadata=None,
         raise KeyError(
             "Non-existing cache value (may have been cleared).\n"
             "File %s does not exist" % filename)
-    return numpy_pickle.load(filename, mmap_mode=mmap_mode)
+    result = numpy_pickle.load(filename, mmap_mode=mmap_mode)
+    _write_usage_stats(output_dir)
+
+    return result
 
 
 # An in-memory store to avoid looking at the disk-based function
@@ -764,6 +785,7 @@ class MemorizedFunc(Logger):
                             mmap_mode=self.mmap_mode, verbose=self._verbose)
 
     # XXX: Need a method to check if results are available.
+
 
     #-------------------------------------------------------------------------
     # Private `object` interface
