@@ -815,7 +815,8 @@ class Memory(Logger):
     # Public interface
     #-------------------------------------------------------------------------
 
-    def __init__(self, cachedir, mmap_mode=None, compress=False, verbose=1):
+    def __init__(self, cachedir, mmap_mode=None, compress=False, verbose=1,
+                 bytes_limit=None):
         """
             Parameters
             ----------
@@ -835,6 +836,8 @@ class Memory(Logger):
             verbose: int, optional
                 Verbosity flag, controls the debug messages that are issued
                 as functions are evaluated.
+            bytes_limit: int, optional
+                Limit in bytes of the size of the cache
         """
         # XXX: Bad explanation of the None value of cachedir
         Logger.__init__(self)
@@ -842,6 +845,7 @@ class Memory(Logger):
         self.mmap_mode = mmap_mode
         self.timestamp = time.time()
         self.compress = compress
+        self.bytes_limit = bytes_limit
         if compress and mmap_mode is not None:
             warnings.warn('Compressed results cannot be memmapped',
                           stacklevel=2)
@@ -905,6 +909,13 @@ class Memory(Logger):
             self.warn('Flushing completely the cache')
         if self.cachedir is not None:
             rm_subdirs(self.cachedir)
+
+    def clean(self):
+        if self.cachedir is not None and self.bytes_limit is not None:
+            # Walk over the whole cache, computes the size, sorts in
+            # decreasing access time, finds cutoff point delete
+            # everything you need to delete with some try except just in case
+
 
     def eval(self, func, *args, **kwargs):
         """ Eval function func with arguments `*args` and `**kwargs`,
