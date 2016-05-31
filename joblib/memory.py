@@ -99,6 +99,7 @@ def _cache_key_to_dir(cachedir, func, argument_hash):
 
 def _write_usage_stats(dirname):
     """Write usage statistics."""
+    return
     import datetime
 
     filename = os.path.join(dirname, 'usage_stats.txt')
