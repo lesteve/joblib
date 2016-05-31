@@ -972,6 +972,10 @@ class Memory(Logger):
             rm_subdirs(self.cachedir)
 
     def clean(self):
+        def onerror(func, path, exc):
+            import traceback
+            print('path:', path)
+            traceback.print_exc()
         if self.cachedir is not None and self.bytes_limit is not None:
             # TODO: Walk over the whole cache, computes the size, sorts in
             # decreasing access time, finds cutoff point delete
@@ -982,7 +986,7 @@ class Memory(Logger):
             for folder in folders_to_delete:
                 if self._verbose > 10:
                     print('Deleting {0}'.format(folder))
-                shutil.rmtree(folder, ignore_errors=True)
+                shutil.rmtree(folder, onerror=onerror)
 
     def eval(self, func, *args, **kwargs):
         """ Eval function func with arguments `*args` and `**kwargs`,

@@ -1,17 +1,7 @@
-import numpy as np
+from joblib import Parallel, delayed
 
-from joblib import Memory
-
-
-mem = Memory('cache')
-
-
-@mem.cache
-def my_function(i):
-    return np.sqrt((i * np.arange(1000)) ** 2)
+from my_module import my_function
 
 
 while True:
-    for i in range(4):
-        my_function(i)
-
+    Parallel(n_jobs=-1)(delayed(my_function)(i) for i in range(4))
