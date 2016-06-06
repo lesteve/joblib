@@ -168,22 +168,35 @@ def _get_cache_info(root_path):
     for dirpath, dirnames, filenames in os.walk(root_path):
         # TODO: Need something to decide whether it is a cache folder or not
         # ... Could be improved
-        output_filename = os.path.join(dirpath, 'output.pkl')
-        try:
-            last_access = datetime.datetime.fromtimestamp(
-                os.path.getatime(output_filename))
-        except OSError:
-            continue
-        else:
-            full_filenames = [os.path.join(dirpath, fn) for fn in filenames]
-            dirsize = sum(os.path.getsize(fn)
-                          for fn in full_filenames)
+        is_cache_folder = re.match('[a-z0-9]{32}', os.path.basename(dirpath))
+
+        if is_cache_folder:
+            output_filename = os.path.join(dirpath, 'output.pkl')
+            try:
+                last_access = os.path.getatime(output_filename)
+            except OSError:
+                try:
+                    print('no output_filename', output_filename)
+                    last_access = os.path.getatime(dirpath)
+                except OSError:
+                    # Probably means that it has already been deleted
+                    print('no folder remaining')
+                    continue
+            try:
+                full_filenames = [os.path.join(dirpath, fn)
+                                  for fn in filenames]
+                dirsize = sum(os.path.getsize(fn)
+                              for fn in full_filenames)
+            except OSError:
+                # Either output_filename or one of the files in
+                # dirpath does not exist any more. We assume this
+                # folder is being cleaned by another process already
+                continue
 
             cache_info.append(CacheItemInfo(dirpath, dirsize, last_access))
 
-    import pprint
-    pprint.pprint(cache_info)
-
+    # import pprint
+    # pprint.pprint(cache_info)
     return cache_info
 
 
@@ -986,11 +999,18 @@ class Memory(Logger):
             # everything you need to delete with some try except just in case
             folders_to_delete = _get_folders_to_delete(self.cachedir,
                                                        self.bytes_limit)
-            print('folders:', folders_to_delete)
+            # print('folders:', folders_to_delete)
             for folder in folders_to_delete:
                 if self._verbose > 10:
                     print('Deleting {0}'.format(folder))
-                shutil.rmtree(folder, onerror=onerror)
+                try:
+                    shutil.rmtree(folder, ignore_errors=True)
+                except OSError:
+                    # Even with ignore_errors=True can shutil.rmtree
+                    # can raise OSErrror with [Errno 116] Stale file
+                    # handle if another process has deleted the folder
+                    # already.
+                    pass
 
     def eval(self, func, *args, **kwargs):
         """ Eval function func with arguments `*args` and `**kwargs`,
