@@ -169,14 +169,18 @@ def _get_cache_info(root_path):
         # TODO: Need something to decide whether it is a cache folder or not
         # ... Could be improved
         output_filename = os.path.join(dirpath, 'output.pkl')
-        if os.path.isfile(output_filename):
+        try:
             last_access = datetime.datetime.fromtimestamp(
                 os.path.getatime(output_filename))
+        except OSError:
+            continue
+        else:
             full_filenames = [os.path.join(dirpath, fn) for fn in filenames]
             dirsize = sum(os.path.getsize(fn)
                           for fn in full_filenames)
 
             cache_info.append(CacheItemInfo(dirpath, dirsize, last_access))
+
     import pprint
     pprint.pprint(cache_info)
 
