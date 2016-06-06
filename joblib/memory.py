@@ -971,7 +971,7 @@ class Memory(Logger):
         if self.cachedir is not None:
             rm_subdirs(self.cachedir)
 
-    def clean(self):
+    def reduce_size(self):
         def onerror(func, path, exc):
             import traceback
             print('path:', path)
