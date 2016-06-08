@@ -161,27 +161,25 @@ def _load_output(output_dir, func_name, timestamp=None, metadata=None,
     return result
 
 
-def _get_cache_info(root_path):
-    """Get cache information that are needed for later cache cleaning"""
-    cache_info = []
+def _get_cache_items(root_path):
+    """Get cache information for reducing the size of the cache"""
+    cache_items = []
 
     for dirpath, dirnames, filenames in os.walk(root_path):
-        # TODO: Need something to decide whether it is a cache folder or not
-        # ... Could be improved
-        is_cache_folder = re.match('[a-z0-9]{32}', os.path.basename(dirpath))
+        is_cache_hash_dir = re.match('[a-z0-9]{32}', os.path.basename(dirpath))
 
-        if is_cache_folder:
+        if is_cache_hash_dir:
             output_filename = os.path.join(dirpath, 'output.pkl')
             try:
                 last_access = os.path.getatime(output_filename)
             except OSError:
                 try:
-                    print('no output_filename', output_filename)
                     last_access = os.path.getatime(dirpath)
                 except OSError:
-                    # Probably means that it has already been deleted
-                    print('no folder remaining')
+                    # The directory has already been deleted
                     continue
+
+            last_access = datetime.datetime.fromtimestamp(last_access)
             try:
                 full_filenames = [os.path.join(dirpath, fn)
                                   for fn in filenames]
@@ -190,47 +188,39 @@ def _get_cache_info(root_path):
             except OSError:
                 # Either output_filename or one of the files in
                 # dirpath does not exist any more. We assume this
-                # folder is being cleaned by another process already
+                # directory is being cleaned by another process already
                 continue
 
-            cache_info.append(CacheItemInfo(dirpath, dirsize, last_access))
+            cache_items.append(CacheItemInfo(dirpath, dirsize, last_access))
 
-    # import pprint
-    # pprint.pprint(cache_info)
-    return cache_info
+    return cache_items
 
 
-def _get_folders_to_delete(root_path, bytes_limit):
-    """Get folders to remove to keep the cache under a size limit"""
+def _get_cache_items_to_delete(root_path, bytes_limit):
+    """Get cache items to delete to to keep the cache under a size limit"""
     if isinstance(bytes_limit, _basestring):
         bytes_limit = memstr_to_kbytes(bytes_limit) * 1024
 
-    cache_info = _get_cache_info(root_path)
-    cache_size = sum(item.size for item in cache_info)
+    cache_items = _get_cache_items(root_path)
+    cache_size = sum(item.size for item in cache_items)
 
     to_delete_size = cache_size - bytes_limit
     if to_delete_size < 0:
         return []
 
-    cache_info.sort(key=operator.attrgetter('last_access'))
+    cache_items.sort(key=operator.attrgetter('last_access'))
 
-    folders_to_delete = []
+    cache_items_to_delete = []
     size_so_far = 0
 
-    for item in cache_info:
+    for item in cache_items:
         if size_so_far > to_delete_size:
-            return folders_to_delete
+            break
 
-        folders_to_delete.append(item.path)
+        cache_items_to_delete.append(item)
         size_so_far += item.size
 
-    # TODO I could potentially clean-up if I removed all the hashes
-    # from a given function. Otherwise it will never be cleaned up
-    # ... At the same time it doesn't take that much space it is just
-    # untidy
-    raise ValueError('Hmmm looks like something went wrong somewhere. '
-                     "Unable to reduce cache size to bytes_limit='{0:g}'."
-                     .format(bytes_limit))
+    return cache_items_to_delete
 
 # An in-memory store to avoid looking at the disk-based function
 # source code to check if a function definition has changed
@@ -989,22 +979,15 @@ class Memory(Logger):
             rm_subdirs(self.cachedir)
 
     def reduce_size(self):
-        def onerror(func, path, exc):
-            import traceback
-            print('path:', path)
-            traceback.print_exc()
         if self.cachedir is not None and self.bytes_limit is not None:
-            # TODO: Walk over the whole cache, computes the size, sorts in
-            # decreasing access time, finds cutoff point delete
-            # everything you need to delete with some try except just in case
-            folders_to_delete = _get_folders_to_delete(self.cachedir,
-                                                       self.bytes_limit)
-            # print('folders:', folders_to_delete)
-            for folder in folders_to_delete:
+            cache_items_to_delete = _get_cache_items_to_delete(
+                self.cachedir, self.bytes_limit)
+
+            for cache_item in cache_items_to_delete:
                 if self._verbose > 10:
-                    print('Deleting {0}'.format(folder))
+                    print('Deleting cache item {0}'.format(cache_item))
                 try:
-                    shutil.rmtree(folder, ignore_errors=True)
+                    shutil.rmtree(cache_item.path, ignore_errors=True)
                 except OSError:
                     # Even with ignore_errors=True can shutil.rmtree
                     # can raise OSErrror with [Errno 116] Stale file
