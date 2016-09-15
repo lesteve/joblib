@@ -653,12 +653,19 @@ class MemorizedFunc(Logger):
         func_code_file = os.path.join(func_dir, 'func_code.py')
 
         try:
-            with io.open(func_code_file, encoding="UTF-8") as infile:
-                old_func_code, old_first_line = \
-                            extract_first_line(infile.read())
+            content = ''
+            while not content:
+                with io.open(func_code_file, encoding="UTF-8") as infile:
+                    content = infile.read()
+
+                    old_func_code, old_first_line = \
+                        extract_first_line(content)
         except IOError:
+            try:
                 self._write_func_code(func_code_file, func_code, first_line)
-                return False
+            except OSError:
+                pass
+            return False
         if old_func_code == func_code:
             return True
 
@@ -723,7 +730,10 @@ class MemorizedFunc(Logger):
         mkdirp(func_dir)
         func_code, _, first_line = get_func_code(self.func)
         func_code_file = os.path.join(func_dir, 'func_code.py')
-        self._write_func_code(func_code_file, func_code, first_line)
+        try:
+            self._write_func_code(func_code_file, func_code, first_line)
+        except OSError:
+            pass
 
     def call(self, *args, **kwargs):
         """ Force the execution of the function with the given arguments and
