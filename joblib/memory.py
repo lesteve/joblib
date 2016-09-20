@@ -489,7 +489,9 @@ class MemorizedFunc(Logger):
         # Compare the function code with the previous to see if the
         # function code has changed
         output_dir, argument_hash = self._get_output_dir(*args, **kwargs)
+        # metadata = {'input_args': {'args': args, 'kwargs': kwargs}}
         metadata = None
+
         # FIXME: The statements below should be try/excepted
         if not (self._check_previous_func_code(stacklevel=4) and
                                  os.path.exists(output_dir)):
@@ -508,6 +510,7 @@ class MemorizedFunc(Logger):
                                    verbose=self._verbose)
         else:
             try:
+                print('args:', args, 'kwargs:', kwargs)
                 t0 = time.time()
                 out = _load_output(output_dir, _get_func_fullname(self.func),
                                    timestamp=self.timestamp,
