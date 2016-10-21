@@ -1,0 +1,11 @@
+machine:
+  environment:
+    PATH: /home/ubuntu/miniconda2/bin:$PATH
+
+dependencies:
+  pre:
+    - pip install nose
+
+test:
+  override:
+    - make test
