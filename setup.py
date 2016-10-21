@@ -68,3 +68,4 @@ Lightweight pipelining: using Python functions as pipeline jobs.
                                         'data/*.npy.z']},
           packages=['joblib', 'joblib.test', 'joblib.test.data'],
           **extra_setuptools_args)
+
