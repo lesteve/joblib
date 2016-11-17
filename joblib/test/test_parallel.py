@@ -11,12 +11,15 @@ import sys
 import io
 import os
 from math import sqrt
+import threading
+import warnings
 
 from joblib import parallel
 
 from joblib.test.common import np, with_numpy
 from joblib.test.common import with_multiprocessing
-from joblib.testing import check_subprocess_call
+from joblib.testing import (assert_equal, assert_true, assert_false,
+                            assert_raises, check_subprocess_call, SkipTest)
 from joblib._compat import PY3_OR_LATER
 from multiprocessing import TimeoutError
 from time import sleep
@@ -24,7 +27,7 @@ from time import sleep
 try:
     import cPickle as pickle
     PickleError = TypeError
-except:
+except ImportError:
     import pickle
     PickleError = pickle.PicklingError
 
@@ -60,9 +63,6 @@ from joblib.parallel import register_parallel_backend, parallel_backend
 
 from joblib.parallel import mp, cpu_count, BACKENDS, effective_n_jobs
 from joblib.my_exceptions import JoblibException
-
-import nose
-from nose.tools import assert_equal, assert_true, assert_false, assert_raises
 
 
 ALL_VALID_BACKENDS = [None] + sorted(BACKENDS.keys())
@@ -166,6 +166,33 @@ def test_simple_parallel():
         yield check_simple_parallel, backend
 
 
+def check_main_thread_renamed_no_warning(backend):
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        results = Parallel(n_jobs=2, backend=backend)(
+            delayed(square)(x) for x in range(3))
+        assert_equal(results, [0, 1, 4])
+    # The multiprocessing backend will raise a warning when detecting that is
+    # started from the non-main thread. Let's check that there is no false
+    # positive because of the name change.
+    assert_equal(caught_warnings, [])
+
+
+def test_main_thread_renamed_no_warning():
+    # Check that no default backend relies on the name of the main thread:
+    # https://github.com/joblib/joblib/issues/180#issuecomment-253266247
+    # Some programs use a different name for the main thread. This is the case
+    # for uWSGI apps for instance.
+    main_thread = threading.current_thread()
+    original_name = main_thread.name
+    try:
+        main_thread.name = "some_new_name_for_the_main_thread"
+        for backend in ALL_VALID_BACKENDS:
+            yield check_main_thread_renamed_no_warning, backend
+    finally:
+        main_thread.name = original_name
+
+
 def nested_loop(backend):
     Parallel(n_jobs=2, backend=backend)(
         delayed(square)(.01) for _ in range(2))
@@ -257,21 +284,18 @@ def test_parallel_pickling():
 def test_parallel_timeout_success():
     # Check that timeout isn't thrown when function is fast enough
     for backend in ['multiprocessing', 'threading']:
-        nose.tools.assert_equal(
-            10,
-            len(Parallel(n_jobs=2, backend=backend, timeout=10)
-                (delayed(sleep)(0.001) for x in range(10))))
+        assert_equal(10,
+                     len(Parallel(n_jobs=2, backend=backend, timeout=10)
+                         (delayed(sleep)(0.001) for x in range(10))))
 
 
 @with_multiprocessing
 def test_parallel_timeout_fail():
     # Check that timeout properly fails when function is too slow
     for backend in ['multiprocessing', 'threading']:
-        nose.tools.assert_raises(
-            TimeoutError,
-            Parallel(n_jobs=2, backend=backend, timeout=0.01),
-            (delayed(sleep)(10) for x in range(10))
-        )
+        assert_raises(TimeoutError,
+                      Parallel(n_jobs=2, backend=backend, timeout=0.01),
+                      (delayed(sleep)(10) for x in range(10)))
 
 
 def test_error_capture():
@@ -409,7 +433,7 @@ def check_dispatch_multiprocessing(backend):
         lazily.
     """
     if mp is None:
-        raise nose.SkipTest()
+        raise SkipTest()
     manager = mp.Manager()
     queue = manager.list()
 
@@ -491,7 +515,7 @@ def test_multiple_spawning():
     # subprocesses will raise an error, to avoid infinite loops on
     # systems that do not support fork
     if not int(os.environ.get('JOBLIB_MULTIPROCESSING', 1)):
-        raise nose.SkipTest()
+        raise SkipTest()
     assert_raises(ImportError, Parallel(n_jobs=2, pre_dispatch='all'),
                   [delayed(_reload_joblib)() for i in range(10)])
 
@@ -706,8 +730,7 @@ def test_default_mp_context():
 @with_numpy
 def test_no_blas_crash_or_freeze_with_multiprocessing():
     if sys.version_info < (3, 4):
-        raise nose.SkipTest('multiprocessing can cause BLAS freeze on'
-                            ' old Python')
+        raise SkipTest('multiprocessing can cause BLAS freeze on old Python')
 
     # Use the spawn backend that is both robust and available on all platforms
     spawn_backend = mp.get_context('spawn')
@@ -734,7 +757,7 @@ def test_parallel_with_interactively_defined_functions():
     # session, we want to be able to use them with joblib.Parallel
     if posix is None:
         # This test pass only when fork is the process start method
-        raise nose.SkipTest('Not a POSIX platform')
+        raise SkipTest('Not a POSIX platform')
 
     code = '\n\n'.join([
         'from joblib import Parallel, delayed',
@@ -782,7 +805,7 @@ def test_nested_parallel_warnings():
     # why we use check_subprocess_call instead
     if posix is None:
         # This test pass only when fork is the process start method
-        raise nose.SkipTest('Not a POSIX platform')
+        raise SkipTest('Not a POSIX platform')
 
     template_code = """
 import sys
