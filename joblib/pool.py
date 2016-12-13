@@ -225,6 +225,9 @@ class ArrayMemmapReducer(object):
             # content of this array only once.
             basename = "%d-%d-%s.pkl" % (
                 os.getpid(), id(threading.current_thread()), hash(a))
+            if self._mmap_mode != 'r':
+                basename = str(id(a)) + '-' + basename
+            print('basename:', basename)
             filename = os.path.join(self._temp_folder, basename)
 
             # In case the same array with the same content is passed several
