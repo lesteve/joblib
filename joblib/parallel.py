@@ -268,6 +268,28 @@ def effective_n_jobs(n_jobs=-1):
     return backend.effective_n_jobs(n_jobs=n_jobs)
 
 
+class ParallelResultIterator(object):
+    def __init__(self, parallel):
+        self.parallel = parallel
+
+    def __iter__(self):
+        try:
+            nb_jobs = 0
+            for batch in self.parallel.retrieve():
+                for result in batch:
+                    nb_jobs += 1
+                    yield result
+        finally:
+
+            if not self.parallel._managed_backend:
+                self.parallel._terminate_backend()
+
+        elapsed_time = time.time() - self.parallel._start_time
+        self.parallel._print('Done %3i out of %3i | elapsed: %s finished',
+                             (nb_jobs, nb_jobs,
+                              short_format_time(elapsed_time)))
+
+
 ###############################################################################
 class Parallel(Logger):
     ''' Helper class for readable parallel mapping.
@@ -469,7 +491,8 @@ class Parallel(Logger):
     '''
     def __init__(self, n_jobs=1, backend=None, verbose=0, timeout=None,
                  pre_dispatch='2 * n_jobs', batch_size='auto',
-                 temp_folder=None, max_nbytes='1M', mmap_mode='r'):
+                 temp_folder=None, max_nbytes='1M', mmap_mode='r',
+                 return_iterator=False):
         active_backend, default_n_jobs = get_active_backend()
         if backend is None and n_jobs == 1:
             # If we are under a parallel_backend context manager, look up
@@ -479,6 +502,7 @@ class Parallel(Logger):
         self.verbose = verbose
         self.timeout = timeout
         self.pre_dispatch = pre_dispatch
+        self.return_iterator = return_iterator
 
         if isinstance(max_nbytes, _basestring):
             max_nbytes = memstr_to_bytes(max_nbytes)
@@ -520,7 +544,7 @@ class Parallel(Logger):
                 % batch_size)
 
         self._backend = backend
-        self._output = None
+        # self._output = None
         self._jobs = list()
         self._managed_backend = False
 
@@ -679,7 +703,6 @@ class Parallel(Logger):
                          ))
 
     def retrieve(self):
-        self._output = list()
         while self._iterating or len(self._jobs) > 0:
             if len(self._jobs) == 0:
                 # Wait for an async callback to dispatch new jobs
@@ -690,12 +713,13 @@ class Parallel(Logger):
             # the use of the lock
             with self._lock:
                 job = self._jobs.pop(0)
+                self._nb_batches_to_retrieve -= 1
 
             try:
                 if getattr(self._backend, 'supports_timeout', False):
-                    self._output.extend(job.get(timeout=self.timeout))
+                    yield job.get(timeout=self.timeout)
                 else:
-                    self._output.extend(job.get())
+                    yield job.get()
 
             except BaseException as exception:
                 # Note: we catch any BaseException instead of just Exception
@@ -769,33 +793,28 @@ Sub-process traceback:
         self.n_dispatched_batches = 0
         self.n_dispatched_tasks = 0
         self.n_completed_tasks = 0
-        try:
-            # Only set self._iterating to True if at least a batch
-            # was dispatched. In particular this covers the edge
-            # case of Parallel used with an exhausted iterator.
-            while self.dispatch_one_batch(iterator):
-                self._iterating = True
-            else:
-                self._iterating = False
 
-            if pre_dispatch == "all" or n_jobs == 1:
-                # The iterable was consumed all at once by the above for loop.
-                # No need to wait for async callbacks to trigger to
-                # consumption.
-                self._iterating = False
-            self.retrieve()
-            # Make sure that we get a last message telling us we are done
-            elapsed_time = time.time() - self._start_time
-            self._print('Done %3i out of %3i | elapsed: %s finished',
-                        (len(self._output), len(self._output),
-                         short_format_time(elapsed_time)))
-        finally:
-            if not self._managed_backend:
-                self._terminate_backend()
-            self._jobs = list()
-        output = self._output
-        self._output = None
-        return output
+        # Only set self._iterating to True if at least a batch
+        # was dispatched. In particular this covers the edge
+        # case of Parallel used with an exhausted iterator.
+        self._nb_batches_to_retrieve = 0
+        while self.dispatch_one_batch(iterator):
+            self._iterating = True
+            self._nb_batches_to_retrieve += 1
+        else:
+            self._iterating = False
+
+        if pre_dispatch == "all" or n_jobs == 1:
+            # The iterable was consumed all at once by the above for loop.
+            # No need to wait for async callbacks to trigger to
+            # consumption.
+            self._iterating = False
+        result_iterator = ParallelResultIterator(self)
+
+        if self.return_iterator:
+            return result_iterator
+        else:
+            return list(result_iterator)
 
     def __repr__(self):
         return '%s(n_jobs=%s)' % (self.__class__.__name__, self.n_jobs)
