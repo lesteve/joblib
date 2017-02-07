@@ -713,7 +713,6 @@ class Parallel(Logger):
             # the use of the lock
             with self._lock:
                 job = self._jobs.pop(0)
-                self._nb_batches_to_retrieve -= 1
 
             try:
                 if getattr(self._backend, 'supports_timeout', False):
@@ -797,10 +796,8 @@ Sub-process traceback:
         # Only set self._iterating to True if at least a batch
         # was dispatched. In particular this covers the edge
         # case of Parallel used with an exhausted iterator.
-        self._nb_batches_to_retrieve = 0
         while self.dispatch_one_batch(iterator):
             self._iterating = True
-            self._nb_batches_to_retrieve += 1
         else:
             self._iterating = False
 

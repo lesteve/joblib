@@ -20,9 +20,11 @@ from joblib import parallel
 
 from joblib.test.common import np, with_numpy
 from joblib.test.common import with_multiprocessing
+from joblib.test.common import with_memory_profiler, memory_used
 from joblib.testing import (parametrize, raises, check_subprocess_call,
                             SkipTest, warns)
 from joblib._compat import PY3_OR_LATER
+
 
 try:
     import cPickle as pickle
@@ -113,7 +115,7 @@ def _active_backend_type():
 
 
 def parallel_func(inner_n_jobs):
-    return Parallel(n_jobs=inner_n_jobs)(delayed(square)(i) for i in range(3))
+    return Parallel(n_jobs=inner_n_jobs, return_iterator=False)(delayed(square)(i) for i in range(3))
 
 
 ###############################################################################
@@ -131,11 +133,14 @@ def test_effective_n_jobs():
 @parametrize('backend', ALL_VALID_BACKENDS)
 @parametrize('n_jobs', [1, 2, -1, -2])
 @parametrize('verbose', [2, 11, 100])
-def test_simple_parallel(backend, n_jobs, verbose):
-    assert ([square(x) for x in range(5)] ==
-            Parallel(n_jobs=n_jobs, backend=backend,
-                     verbose=verbose)(
-                delayed(square)(x) for x in range(5)))
+@parametrize('return_iterator', [True, False])
+def test_simple_parallel(backend, n_jobs, verbose, return_iterator):
+    result = Parallel(n_jobs=n_jobs, backend=backend,
+                      verbose=verbose, return_iterator=return_iterator)(
+                          delayed(square)(x) for x in range(5))
+    if not isinstance(result, list):
+        result = list(result)
+    assert [square(x) for x in range(5)] == result
 
 
 @parametrize('backend', ALL_VALID_BACKENDS)
@@ -721,7 +726,7 @@ def test_nested_parallel_warnings(capfd):
         raise SkipTest('Not a POSIX platform')
 
     # no warnings if inner_n_jobs=1
-    Parallel(n_jobs=2)(delayed(parallel_func)(inner_n_jobs=1)
+    Parallel(n_jobs=2, return_iterator=True)(delayed(parallel_func)(inner_n_jobs=1)
                        for _ in range(5))
     out, err = capfd.readouterr()
     assert err == ''
@@ -761,3 +766,48 @@ def test_warning_about_timeout_not_supported_by_backend():
         "The backend class 'SequentialBackend' does not support timeout. "
         "You have set 'timeout=1' in Parallel but the 'timeout' parameter "
         "will not be used.")
+
+
+def set_list_value(input_list, index, value):
+    input_list[index] = value
+    return value
+
+
+def func(arg):
+    return 'a' * (10 * 1024 ** 2)
+
+
+@with_numpy
+@with_memory_profiler
+def test_parallel_return_iterator_memory_usage():
+    def my_func():
+        result_it = Parallel(n_jobs=2, return_iterator=True, batch_size=1)(
+            delayed(func)(i) for i in range(100))
+        #list(result_it)`
+        for each in result_it:
+            pass
+
+    mem_used = memory_used(my_func)
+
+    assert mem_used < (7 * 10)
+
+
+
+def test_parallel_return_iterator():
+    # TODO: verify that the func is called only when next is called
+    # Verify that not all jobs are called memory usage ? something
+    # better ?  maybe with n_jobs=1, you can test something a bit more
+    # thoroughly, e.g. that the function is called only when doing
+    # next
+    input_list = [0] * 5
+    print(input_list)
+
+    result = Parallel(n_jobs=1, return_iterator=True)(
+        delayed(set_list_value)(input_list, i, i) for i in range(5))
+
+    for i, each in enumerate(result):
+        print(i)
+        print(input_list)
+        assert input_list[i] == each
+        assert all(v == 0 for v in input_list[i + 1:])
+    # return_iterator nested in a non return_iterator

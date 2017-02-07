@@ -329,10 +329,11 @@ class ImmediateResult(object):
     def __init__(self, batch):
         # Don't delay the application, to avoid keeping the input
         # arguments in memory
-        self.results = batch()
+        self.batch = batch
+        # self.results = batch()
 
     def get(self):
-        return self.results
+        return self.batch()
 
 
 class SafeFunction(object):
