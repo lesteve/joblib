@@ -1,5 +1,6 @@
 import os
-import multiprocessing
+from multiprocessing.pool import Pool, ThreadPool
+import time
 
 
 def f(arg):
@@ -13,9 +14,12 @@ def mypid(_):
 
 
 def test_f():
-    pool = multiprocessing.Pool(2)
+    pool = Pool(2)
     print(pool.map(mypid, range(4)))
     pool.apply(f, (1,))
+    pool.close()
+    pool.join()
     # Parallel(n_jobs=2)(delayed(f)(i) for i in range(3))
 
-test_f()
+if __name__ == '__main__':
+    test_f()
