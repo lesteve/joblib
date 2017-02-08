@@ -1,4 +1,6 @@
 [run]
+concurrency = multiprocessing
+parallel = True
 omit =
   joblib/test/data/*
 

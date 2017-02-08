@@ -19,6 +19,8 @@ if [[ "$SKIP_TESTS" != "true" ]]; then
         # Add coverage option to setup.cfg file if current test run
         # has to generate report for codecov ...
         export PYTEST_ADDOPTS="--cov=joblib"
+        # Ensure subprocesses coverage
+        python continuous_integration/install_coverage_subprocess_pth.py
     fi
     make
 fi
