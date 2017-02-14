@@ -1,0 +1,54 @@
+import time
+
+import numpy as np
+
+from joblib import Parallel, delayed
+
+%load_ext memory_profiler
+
+def func(arg):
+    # print('func({})'.format(arg))
+    result = np.zeros(int(1e6))
+    # time.sleep(2)
+    result[0] = arg
+    return result
+
+def main(return_iterator):
+    result = Parallel(n_jobs=2, return_iterator=return_iterator,
+                      verbose=1, batch_size=1)(delayed(func)(i) for i in range(100))
+
+
+
+    # time.sleep(10)
+
+    for each in result:
+        # print(each)
+        pass
+
+for i in range(10):
+    %memit main(return_iterator=True)
+
+
+%memit main(return_iterator=False)
+# time.sleep(5)
+# list(result)
+# print('='*80)
+# print(type(result))
+# print('='*80)
+# print('-'*80)
+# for each in result:
+#     print('++++')
+#     print('each.sum()', each.sum())
+
+# print('-'*80)
+
+# result = Parallel(n_jobs=2, return_iterator=True,
+#                   verbose=2)(delayed(func)(i) for i in range(10))
+# it = result.__iter__()
+# while True:
+#     try:
+#         next_result = next(it)
+#         print('next_result:', next_result)
+#         time.sleep(1)
+#     except Exception:
+#         break
