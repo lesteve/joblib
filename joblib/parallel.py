@@ -280,7 +280,6 @@ class ParallelResultIterator(object):
                     nb_jobs += 1
                     yield result
         finally:
-
             if not self.parallel._managed_backend:
                 self.parallel._terminate_backend()
 

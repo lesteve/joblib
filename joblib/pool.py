@@ -357,6 +357,7 @@ class CustomizablePicklingQueue(object):
         racquire, rrelease = self._rlock.acquire, self._rlock.release
 
         def get():
+            print('racquire:', os.getpid())
             racquire()
             try:
                 return recv()
@@ -381,6 +382,7 @@ class CustomizablePicklingQueue(object):
                 self._wlock.acquire, self._wlock.release)
 
             def put(obj):
+                print('wlock_acquire:', os.getpid())
                 wlock_acquire()
                 try:
                     return send(obj)
@@ -594,8 +596,8 @@ class MemmapingPool(PicklingPool):
 
         poolargs = dict(
             processes=processes,
-            forward_reducers=forward_reducers,
-            backward_reducers=backward_reducers)
+            forward_reducers={}, # forward_reducers,
+            backward_reducers={}) # backward_reducers)
         poolargs.update(kwargs)
         super(MemmapingPool, self).__init__(**poolargs)
 
