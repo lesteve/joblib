@@ -21,6 +21,7 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+import traceback
 
 from ._multiprocessing_helpers import mp
 
@@ -711,15 +712,31 @@ class Parallel(Logger):
             # we empty it and Python list are not thread-safe by default hence
             # the use of the lock
             with self._lock:
+                print('lock acquired: pid {}, thread {}'.format(
+                    os.getpid(), threading.current_thread().name))
                 job = self._jobs.pop(0)
-
+            print('lock released: pid {}, thread {}'.format(
+                os.getpid(), threading.current_thread().name))
             try:
                 if getattr(self._backend, 'supports_timeout', False):
+                    print('before get: pid {}, thread {}'.format(
+                        os.getpid(), threading.current_thread().name))
+                    # result = job.get(timeout=self.timeout)
+                    # print('after get: pid {}, thread {}, got {}'.format(
+                    #     os.getpid(), threading.current_thread().name, result))
                     yield job.get(timeout=self.timeout)
+                    print('after yield: pid {}, thread {}'.format(
+                        os.getpid(), threading.current_thread().name))
                 else:
                     yield job.get()
-
+            except GeneratorExit:
+                print('GeneratorExit')
+                raise
             except BaseException as exception:
+                print('got exception: pid {}, thread {}\n{}'.format(
+                    os.getpid(), threading.current_thread().name,
+                    traceback.format_exc()))
+
                 # Note: we catch any BaseException instead of just Exception
                 # instances to also include KeyboardInterrupt.
 

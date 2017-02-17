@@ -357,12 +357,21 @@ class CustomizablePicklingQueue(object):
         racquire, rrelease = self._rlock.acquire, self._rlock.release
 
         def get():
-            print('racquire:', os.getpid())
+            print('before racquire: pid {} thread {}'.format(
+                os.getpid(), threading.current_thread().name))
             racquire()
+            print('after racquire: pid {} thread {}'.format(
+                os.getpid(), threading.current_thread().name))
             try:
-                return recv()
+                obj = recv()
+                print('after racquire: pid {} thread {} got {}'.format(
+                    os.getpid(), threading.current_thread().name, obj))
+                return obj
             finally:
                 rrelease()
+                print('after rrelease: pid {} thread {}'.format(
+                    os.getpid(), threading.current_thread().name))
+
 
         self.get = get
 
@@ -378,16 +387,38 @@ class CustomizablePicklingQueue(object):
             # writes to a message oriented win32 pipe are atomic
             self.put = send
         else:
-            wlock_acquire, wlock_release = (
-                self._wlock.acquire, self._wlock.release)
+            def wlock_acquire(block=True, timeout=-1):
+                self._wlock.acquire(block=block,
+                                    timeout=timeout)
+            def wlock_release():
+                self._wlock.release()
+
+            # wlock_acquire, wlock_release = (
+            #     self._wlock.acquire, self._wlock.release)
 
             def put(obj):
-                print('wlock_acquire:', os.getpid())
-                wlock_acquire()
+                acquired = False
+                for i in range(10):
+                    print('before wlock_acquire {}: pid {} thread {}. Trying to acquire {} and to send {}'.format(
+                        i, os.getpid(), threading.current_thread().name, self._wlock, obj))
+                    acquired = wlock_acquire()
+                    if acquired:
+                        break
+                    import time
+                    time.sleep(1)
+                else:
+                    raise RuntimeError('Could not acquire: pid {} thread {}'.format(
+                        os.getpid(), threading.current_thread().name))
+
+                print('after wlock_acquire: pid {} thread {}'.format(
+                    os.getpid(), threading.current_thread().name))
                 try:
                     return send(obj)
                 finally:
                     wlock_release()
+                    print('after wlock_release: pid {} thread {}'.format(
+                        os.getpid(), threading.current_thread().name))
+
 
             self.put = put
 
