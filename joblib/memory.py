@@ -478,6 +478,13 @@ class MemorizedFunc(Logger):
             doc = func.__doc__
         self.__doc__ = 'Memoized version of %s' % doc
 
+    def _requires_computation(self, output_pickle_path):
+        """Check whether a cache result needs to be computed."""
+        # Compare the function code with the previous to see if the
+        # function code has changed
+        return not (self._check_previous_func_code(stacklevel=4) and
+                    os.path.isfile(output_pickle_path))
+
     def _cached_call(self, args, kwargs):
         """Call wrapped function and cache result, or read cache if available.
 
@@ -494,19 +501,16 @@ class MemorizedFunc(Logger):
         metadata: dict
             some metadata about wrapped function call (see _persist_input())
         """
-        # Compare the function code with the previous to see if the
-        # function code has changed
         output_dir, argument_hash = self._get_output_dir(*args, **kwargs)
         metadata = None
         output_pickle_path = os.path.join(output_dir, 'output.pkl')
-        # FIXME: The statements below should be try/excepted
-        if not (self._check_previous_func_code(stacklevel=4) and
-                os.path.isfile(output_pickle_path)):
+
+        if self._requires_computation(output_pickle_path):
             if self._verbose > 10:
                 _, name = get_func_name(self.func)
                 self.warn('Computing func %s, argument hash %s in '
                           'directory %s'
-                        % (name, argument_hash, output_dir))
+                          % (name, argument_hash, output_dir))
             out, metadata = self.call(*args, **kwargs)
             if self.mmap_mode is not None:
                 # Memmap the output at the first call to be consistent with
