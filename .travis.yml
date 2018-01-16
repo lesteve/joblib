@@ -29,7 +29,7 @@ after_success:
     # to be published.
     - |
       if [[ "$COVERAGE" == "true" ]]; then
-        ls -ltr .coverage.*
+        ls -ltr .coverage.* || echo "no .coverage.* files"
         rm -rf .coverage.*
         codecov || echo "failed"
       fi
