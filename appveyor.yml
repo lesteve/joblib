@@ -42,9 +42,9 @@ artifacts:
 
 on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse
-  - ls .coverage.*
-  - Get-ChildItem -Path .coverage.* | where {$_.length -eq 0} | remove-Item
-  - ls .coverage.*
+  - ps: ls .coverage*
+  - ps: Get-ChildItem -Path .coverage.* | where {$_.length -eq 0} | remove-Item
+  - ps: ls .coverage*
   - coverage report
   - coverage combine -a
   - coverage report
