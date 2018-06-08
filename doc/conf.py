@@ -51,7 +51,16 @@ sphinx_gallery_conf = {
     'filename_pattern': '',
     'backreferences_dir': os.path.join('generated'),
     'reference_url': {
-        'joblib': None}
+        'joblib': None},
+    'binder': {
+        'org': 'joblib',
+        'repo': 'joblib.github.io',
+        'url': 'https://mybinder.org',
+        'branch': 'master',
+        'dependencies': './binder/requirements.txt',
+        'use_jupyter_lab': True
+    }
+
 }
 
 # Add any paths that contain templates here, relative to this directory.
