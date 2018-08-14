@@ -21,6 +21,7 @@ except ImportError:
     import pickle as cpickle
 import functools
 
+import pytest
 
 from joblib.memory import Memory
 from joblib.memory import MemorizedFunc, NotMemorizedFunc
@@ -37,6 +38,7 @@ from joblib.testing import parametrize, raises, warns, timeout
 from joblib._compat import PY3_OR_LATER
 from joblib.backports import concurrency_safe_rename
 from joblib._store_backends import concurrency_safe_write
+from joblib.hashing import hash
 
 
 ###############################################################################
@@ -1016,3 +1018,54 @@ def test_dummy_store_backend():
 
     backend_obj = _store_backend_factory(backend_name, "dummy_location")
     assert isinstance(backend_obj, DummyStoreBackend)
+
+
+def compare(left, right, ignored_attrs=None):
+    if ignored_attrs is None:
+        ignored_attrs = []
+
+    left_vars = vars(left)
+    right_vars = vars(right)
+    assert left_vars.keys() == right_vars.keys()
+    for attr in left_vars.keys():
+        if attr in ignored_attrs:
+            continue
+        assert left_vars[attr] == right_vars[attr]
+
+
+@pytest.mark.parametrize('memory_kwargs',
+                         [{'compress': 3, 'verbose': 2},
+                          {'mmap_mode': 'r', 'verbose': 5, 'bytes_limit': 1e6,
+                           'backend_options': {'parameter': 'unused'}}])
+def test_memory_pickle_dump_load(tmpdir, memory_kwargs):
+    memory = Memory(location=tmpdir.strpath, **memory_kwargs)
+
+    memory_reloaded = pickle.loads(pickle.dumps(memory))
+
+    # Compare Memory instance before and after pickle roundtrip
+    compare(memory.store_backend, memory_reloaded.store_backend)
+    compare(memory, memory_reloaded,
+            ignored_attrs=set(['store_backend', 'timestamp']))
+    assert hash(memory) == hash(memory_reloaded)
+
+    func_cached = memory.cache(f)
+
+    func_cached_reloaded = pickle.loads(pickle.dumps(func_cached))
+
+    # Compare MemorizedFunc instance before/after pickle roundtrip
+    compare(func_cached.location, func_cached_reloaded.location)
+    compare(func_cached.store_backend, func_cached_reloaded.store_backend)
+    compare(func_cached, func_cached_reloaded,
+            ignored_attrs=set(['location', 'store_backend', 'timestamp']))
+    assert hash(func_cached) == hash(func_cached_reloaded)
+
+    # Compare MemorizedResult instance before/after pickle roundtrip
+    memorized_result = func_cached.call_and_shelve(1)
+    memorized_result_reloaded = pickle.loads(pickle.dumps(memorized_result))
+
+    compare(memorized_result.location, memorized_result_reloaded.location)
+    compare(memorized_result.store_backend,
+            memorized_result_reloaded.store_backend)
+    compare(memorized_result, memorized_result_reloaded,
+            ignored_attrs=set(['location', 'store_backend', 'timestamp']))
+    assert hash(memorized_result) == hash(memorized_result_reloaded)

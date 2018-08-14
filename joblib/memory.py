@@ -166,6 +166,19 @@ def _format_load_msg(func_id, args_id, timestamp=None, metadata=None):
     return '[Memory]{0}: Loading {1}'.format(ts_string, str(signature))
 
 
+class ReconstructFromParamersDict(object):
+    """ Helper function to implement __reduce__.
+
+    This allows to create a reconstruct function that takes keywords arguments
+    rather than positional arguments.
+    """
+    def __init__(self, cls):
+        self.cls = cls
+
+    def reconstruct(self, parameters_dict):
+        return self.cls(**parameters_dict)
+
+
 # An in-memory store to avoid looking at the disk-based function
 # source code to check if a function definition has changed
 _FUNCTION_HASHES = weakref.WeakKeyDictionary()
@@ -207,7 +220,9 @@ class MemorizedResult(Logger):
     def __init__(self, location, func, args_id, backend='local',
                  mmap_mode=None, verbose=0, timestamp=None, metadata=None):
         Logger.__init__(self)
+        self.location = location
         self.func = func
+        self.backend = backend
         self.func_id = _build_func_identifier(func)
         self.args_id = args_id
         self.store_backend = _store_backend_factory(backend, location,
@@ -256,10 +271,14 @@ class MemorizedResult(Logger):
                         func=self.func,
                         args_id=self.args_id
                         ))
+
     def __reduce__(self):
-        return (self.__class__,
-                (self.store_backend, self.func, self.args_id),
-                {'mmap_mode': self.mmap_mode})
+        tuple_args = tuple([{
+            'location': self.location, 'func': self.func,
+            'args_id': self.args_id, 'backend': self.backend,
+            'mmap_mode': self.mmap_mode, 'verbose': self.verbose}])
+        return (ReconstructFromParamersDict(self.__class__).reconstruct,
+                tuple_args)
 
 
 class NotMemorizedResult(object):
@@ -386,6 +405,9 @@ class MemorizedFunc(Logger):
         self.mmap_mode = mmap_mode
         self.compress = compress
         self.func = func
+        self.location = location
+        self.backend = backend
+
         if ignore is None:
             ignore = []
         self.ignore = ignore
@@ -513,10 +535,14 @@ class MemorizedFunc(Logger):
     def __reduce__(self):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
-            In addition, when unpickling, we run the __init__
         """
-        return (self.__class__, (self.func, self.store_backend, self.ignore,
-                self.mmap_mode, self.compress, self._verbose))
+        tuple_args = tuple([{
+            'func': self.func, 'location': self.location,
+            'backend': self.backend,
+            'ignore': self.ignore, 'mmap_mode': self.mmap_mode,
+            'compress': self.compress, 'verbose': self._verbose}])
+        return (ReconstructFromParamersDict(self.__class__).reconstruct,
+                tuple_args)
 
     # ------------------------------------------------------------------------
     # Private interface
@@ -817,6 +843,10 @@ class Memory(Logger):
         self.timestamp = time.time()
         self.bytes_limit = bytes_limit
         self.backend = backend
+        self.location = location
+        self.compress = compress
+        self.backend_options = backend_options
+
         if compress and mmap_mode is not None:
             warnings.warn('Compressed results cannot be memmapped',
                           stacklevel=2)
@@ -896,9 +926,11 @@ class Memory(Logger):
             mmap_mode = self.mmap_mode
         if isinstance(func, MemorizedFunc):
             func = func.func
-        return MemorizedFunc(func, self.store_backend, mmap_mode=mmap_mode,
-                             ignore=ignore, verbose=verbose,
-                             timestamp=self.timestamp)
+        return MemorizedFunc(func, location=self.store_backend,
+                             backend=self.backend,
+                             ignore=ignore, mmap_mode=mmap_mode,
+                             compress=self.compress,
+                             verbose=verbose, timestamp=self.timestamp)
 
     def clear(self, warn=True):
         """ Erase the complete cache directory.
@@ -938,12 +970,11 @@ class Memory(Logger):
     def __reduce__(self):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
-            In addition, when unpickling, we run the __init__
         """
-        # We need to remove 'joblib' from the end of cachedir
-        location = (repr(self.store_backend)[:-7]
-                    if self.store_backend is not None else None)
-        compress = self.store_backend.compress \
-            if self.store_backend is not None else False
-        return (self.__class__, (location, self.backend, self.mmap_mode,
-                                 compress, self._verbose))
+        tuple_args = tuple([
+            {'location': self.location, 'backend': self.backend,
+             'mmap_mode': self.mmap_mode, 'compress': self.compress,
+             'verbose': self._verbose, 'bytes_limit': self.bytes_limit,
+             'backend_options': self.backend_options}])
+        return (ReconstructFromParamersDict(self.__class__).reconstruct,
+                tuple_args)
