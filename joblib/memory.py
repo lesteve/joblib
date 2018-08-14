@@ -166,17 +166,13 @@ def _format_load_msg(func_id, args_id, timestamp=None, metadata=None):
     return '[Memory]{0}: Loading {1}'.format(ts_string, str(signature))
 
 
-class ReconstructFromParamersDict(object):
+def _reconstruct_from_parameters_dict(cls, parameters_dict):
     """ Helper function to implement __reduce__.
 
     This allows to create a reconstruct function that takes keywords arguments
     rather than positional arguments.
     """
-    def __init__(self, cls):
-        self.cls = cls
-
-    def reconstruct(self, parameters_dict):
-        return self.cls(**parameters_dict)
+    return cls(**parameters_dict)
 
 
 # An in-memory store to avoid looking at the disk-based function
@@ -273,12 +269,13 @@ class MemorizedResult(Logger):
                         ))
 
     def __reduce__(self):
+        reconstruct = functools.partial(
+            _reconstruct_from_parameters_dict, self.__class__)
         tuple_args = tuple([{
             'location': self.location, 'func': self.func,
             'args_id': self.args_id, 'backend': self.backend,
             'mmap_mode': self.mmap_mode, 'verbose': self.verbose}])
-        return (ReconstructFromParamersDict(self.__class__).reconstruct,
-                tuple_args)
+        return (reconstruct, tuple_args)
 
 
 class NotMemorizedResult(object):
@@ -536,13 +533,14 @@ class MemorizedFunc(Logger):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
         """
+        reconstruct = functools.partial(
+            _reconstruct_from_parameters_dict, self.__class__)
         tuple_args = tuple([{
             'func': self.func, 'location': self.location,
             'backend': self.backend,
             'ignore': self.ignore, 'mmap_mode': self.mmap_mode,
             'compress': self.compress, 'verbose': self._verbose}])
-        return (ReconstructFromParamersDict(self.__class__).reconstruct,
-                tuple_args)
+        return (reconstruct, tuple_args)
 
     # ------------------------------------------------------------------------
     # Private interface
@@ -971,10 +969,10 @@ class Memory(Logger):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
         """
+        reconstruct = functools.partial(_reconstruct_from_parameters_dict, self.__class__)
         tuple_args = tuple([
             {'location': self.location, 'backend': self.backend,
              'mmap_mode': self.mmap_mode, 'compress': self.compress,
              'verbose': self._verbose, 'bytes_limit': self.bytes_limit,
              'backend_options': self.backend_options}])
-        return (ReconstructFromParamersDict(self.__class__).reconstruct,
-                tuple_args)
+        return (reconstruct, tuple_args)
