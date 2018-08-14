@@ -969,7 +969,8 @@ class Memory(Logger):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
         """
-        reconstruct = functools.partial(_reconstruct_from_parameters_dict, self.__class__)
+        reconstruct = functools.partial(
+            _reconstruct_from_parameters_dict, self.__class__)
         tuple_args = tuple([
             {'location': self.location, 'backend': self.backend,
              'mmap_mode': self.mmap_mode, 'compress': self.compress,
