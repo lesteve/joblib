@@ -166,15 +166,6 @@ def _format_load_msg(func_id, args_id, timestamp=None, metadata=None):
     return '[Memory]{0}: Loading {1}'.format(ts_string, str(signature))
 
 
-def _reconstruct_from_parameters_dict(cls, parameters_dict):
-    """ Helper function to implement __reduce__.
-
-    This allows to create a reconstruct function that takes keywords arguments
-    rather than positional arguments.
-    """
-    return cls(**parameters_dict)
-
-
 # An in-memory store to avoid looking at the disk-based function
 # source code to check if a function definition has changed
 _FUNCTION_HASHES = weakref.WeakKeyDictionary()
@@ -218,7 +209,6 @@ class MemorizedResult(Logger):
         Logger.__init__(self)
         self.location = location
         self.func = func
-        self.backend = backend
         self.func_id = _build_func_identifier(func)
         self.args_id = args_id
         self.store_backend = _store_backend_factory(backend, location,
@@ -268,14 +258,10 @@ class MemorizedResult(Logger):
                         args_id=self.args_id
                         ))
 
-    def __reduce__(self):
-        reconstruct = functools.partial(
-            _reconstruct_from_parameters_dict, self.__class__)
-        tuple_args = tuple([{
-            'location': self.location, 'func': self.func,
-            'args_id': self.args_id, 'backend': self.backend,
-            'mmap_mode': self.mmap_mode, 'verbose': self.verbose}])
-        return (reconstruct, tuple_args)
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['timestamp'] = None
+        return state
 
 
 class NotMemorizedResult(object):
@@ -340,9 +326,6 @@ class NotMemorizedFunc(object):
     def call_and_shelve(self, *args, **kwargs):
         return NotMemorizedResult(self.func(*args, **kwargs))
 
-    def __reduce__(self):
-        return (self.__class__, (self.func,))
-
     def __repr__(self):
         return '{0}(func={1})'.format(self.__class__.__name__, self.func)
 
@@ -403,7 +386,6 @@ class MemorizedFunc(Logger):
         self.compress = compress
         self.func = func
         self.location = location
-        self.backend = backend
 
         if ignore is None:
             ignore = []
@@ -529,18 +511,13 @@ class MemorizedFunc(Logger):
     def __call__(self, *args, **kwargs):
         return self._cached_call(args, kwargs)[0]
 
-    def __reduce__(self):
+    def __getstate__(self):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
         """
-        reconstruct = functools.partial(
-            _reconstruct_from_parameters_dict, self.__class__)
-        tuple_args = tuple([{
-            'func': self.func, 'location': self.location,
-            'backend': self.backend,
-            'ignore': self.ignore, 'mmap_mode': self.mmap_mode,
-            'compress': self.compress, 'verbose': self._verbose}])
-        return (reconstruct, tuple_args)
+        state = self.__dict__.copy()
+        state['timestamp'] = None
+        return state
 
     # ------------------------------------------------------------------------
     # Private interface
@@ -965,15 +942,10 @@ class Memory(Logger):
             self.__class__.__name__, (repr(None) if self.store_backend is None
                                       else repr(self.store_backend)))
 
-    def __reduce__(self):
+    def __getstate__(self):
         """ We don't store the timestamp when pickling, to avoid the hash
             depending from it.
         """
-        reconstruct = functools.partial(
-            _reconstruct_from_parameters_dict, self.__class__)
-        tuple_args = tuple([
-            {'location': self.location, 'backend': self.backend,
-             'mmap_mode': self.mmap_mode, 'compress': self.compress,
-             'verbose': self._verbose, 'bytes_limit': self.bytes_limit,
-             'backend_options': self.backend_options}])
-        return (reconstruct, tuple_args)
+        state = self.__dict__.copy()
+        state['timestamp'] = None
+        return state
