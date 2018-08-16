@@ -204,15 +204,13 @@ class MemorizedResult(Logger):
     timestamp, metadata: string
         for internal use only.
     """
-    def __init__(self, location, func, args_id, backend='local',
+    def __init__(self, func, store_backend, args_id, backend='local',
                  mmap_mode=None, verbose=0, timestamp=None, metadata=None):
         Logger.__init__(self)
-        self.location = location
         self.func = func
         self.func_id = _build_func_identifier(func)
+        self.store_backend = store_backend
         self.args_id = args_id
-        self.store_backend = _store_backend_factory(backend, location,
-                                                    verbose=verbose)
         self.mmap_mode = mmap_mode
 
         if metadata is not None:
@@ -250,10 +248,10 @@ class MemorizedResult(Logger):
         self.store_backend.clear_item([self.func_id, self.args_id])
 
     def __repr__(self):
-        return ('{class_name}(location="{location}", func="{func}", '
+        return ('{class_name}(store_backend="{store_backend}", func="{func}", '
                 'args_id="{args_id}")'
                 .format(class_name=self.__class__.__name__,
-                        location=self.store_backend,
+                        store_backend=self.store_backend,
                         func=self.func,
                         args_id=self.args_id
                         ))
@@ -379,26 +377,18 @@ class MemorizedFunc(Logger):
     # Public interface
     # ------------------------------------------------------------------------
 
-    def __init__(self, func, location, backend='local', ignore=None,
-                 mmap_mode=None, compress=False, verbose=1, timestamp=None):
+    def __init__(self, func, store_backend, ignore=None,
+                 mmap_mode=None, verbose=1, timestamp=None):
         Logger.__init__(self)
         self.mmap_mode = mmap_mode
-        self.compress = compress
         self.func = func
-        self.location = location
+        self.store_backend = store_backend
 
         if ignore is None:
             ignore = []
         self.ignore = ignore
         self._verbose = verbose
 
-        # retrieve store object from backend type and location.
-        self.store_backend = _store_backend_factory(backend, location,
-                                                    verbose=verbose,
-                                                    backend_options=dict(
-                                                        compress=compress,
-                                                        mmap_mode=mmap_mode),
-                                                    )
         if self.store_backend is not None:
             # Create func directory on demand.
             self.store_backend.\
@@ -504,7 +494,7 @@ class MemorizedFunc(Logger):
             activated (e.g. location=None in Memory).
         """
         _, args_id, metadata = self._cached_call(args, kwargs)
-        return MemorizedResult(self.store_backend, self.func, args_id,
+        return MemorizedResult(self.func, self.store_backend, args_id,
                                metadata=metadata, verbose=self._verbose - 1,
                                timestamp=self.timestamp)
 
@@ -745,9 +735,10 @@ class MemorizedFunc(Logger):
     # ------------------------------------------------------------------------
 
     def __repr__(self):
-        return ("{0}(func={1}, location={2})".format(self.__class__.__name__,
-                                                     self.func,
-                                                     self.store_backend,))
+        return ("{0}(func={1}, store_backend={2})".format(
+            self.__class__.__name__,
+            self.func,
+            self.store_backend,))
 
 
 ###############################################################################
@@ -818,9 +809,6 @@ class Memory(Logger):
         self.timestamp = time.time()
         self.bytes_limit = bytes_limit
         self.backend = backend
-        self.location = location
-        self.compress = compress
-        self.backend_options = backend_options
 
         if compress and mmap_mode is not None:
             warnings.warn('Compressed results cannot be memmapped',
@@ -901,10 +889,8 @@ class Memory(Logger):
             mmap_mode = self.mmap_mode
         if isinstance(func, MemorizedFunc):
             func = func.func
-        return MemorizedFunc(func, location=self.store_backend,
-                             backend=self.backend,
+        return MemorizedFunc(func, store_backend=self.store_backend,
                              ignore=ignore, mmap_mode=mmap_mode,
-                             compress=self.compress,
                              verbose=verbose, timestamp=self.timestamp)
 
     def clear(self, warn=True):
@@ -939,8 +925,7 @@ class Memory(Logger):
 
     def __repr__(self):
         return '{0}(location={1})'.format(
-            self.__class__.__name__, (repr(None) if self.store_backend is None
-                                      else repr(self.store_backend)))
+            self.__class__.__name__, self.location)
 
     def __getstate__(self):
         """ We don't store the timestamp when pickling, to avoid the hash

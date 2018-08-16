@@ -433,10 +433,11 @@ def test_persistence(tmpdir):
 
 def test_call_and_shelve(tmpdir):
     # Test MemorizedFunc outputting a reference to cache.
+    store_backend = _store_backend_factory('local', tmpdir.strpath)
 
-    for func, Result in zip((MemorizedFunc(f, tmpdir.strpath),
+    for func, Result in zip((MemorizedFunc(f, store_backend),
                              NotMemorizedFunc(f),
-                             Memory(location=tmpdir.strpath,
+                             Memory(location=store_backend,
                                     verbose=0).cache(f),
                              Memory(location=None).cache(f),
                              ),
@@ -467,7 +468,9 @@ def test_call_and_shelve_argument_hash(tmpdir):
 
 
 def test_memorized_pickling(tmpdir):
-    for func in (MemorizedFunc(f, tmpdir.strpath), NotMemorizedFunc(f)):
+    store_backend = _store_backend_factory('local', tmpdir.strpath)
+
+    for func in (MemorizedFunc(f, store_backend), NotMemorizedFunc(f)):
         filename = tmpdir.join('pickling_test.dat').strpath
         result = func.call_and_shelve(2)
         with open(filename, 'wb') as fp:
@@ -479,10 +482,12 @@ def test_memorized_pickling(tmpdir):
 
 
 def test_memorized_repr(tmpdir):
-    func = MemorizedFunc(f, tmpdir.strpath)
+    store_backend = _store_backend_factory('local', tmpdir.strpath)
+
+    func = MemorizedFunc(f, store_backend)
     result = func.call_and_shelve(2)
 
-    func2 = MemorizedFunc(f, tmpdir.strpath)
+    func2 = MemorizedFunc(f, store_backend)
     result2 = func2.call_and_shelve(2)
     assert result.get() == result2.get()
     assert repr(func) == repr(func2)
@@ -493,19 +498,19 @@ def test_memorized_repr(tmpdir):
     repr(func.call_and_shelve(2))
 
     # Smoke test for message output (increase code coverage)
-    func = MemorizedFunc(f, tmpdir.strpath, verbose=11, timestamp=time.time())
+    func = MemorizedFunc(f, store_backend, verbose=11, timestamp=time.time())
     result = func.call_and_shelve(11)
     result.get()
 
-    func = MemorizedFunc(f, tmpdir.strpath, verbose=11)
+    func = MemorizedFunc(f, store_backend, verbose=11)
     result = func.call_and_shelve(11)
     result.get()
 
-    func = MemorizedFunc(f, tmpdir.strpath, verbose=5, timestamp=time.time())
+    func = MemorizedFunc(f, store_backend, verbose=5, timestamp=time.time())
     result = func.call_and_shelve(11)
     result.get()
 
-    func = MemorizedFunc(f, tmpdir.strpath, verbose=5)
+    func = MemorizedFunc(f, store_backend, verbose=5)
     result = func.call_and_shelve(11)
     result.get()
 
@@ -1053,19 +1058,17 @@ def test_memory_pickle_dump_load(tmpdir, memory_kwargs):
     func_cached_reloaded = pickle.loads(pickle.dumps(func_cached))
 
     # Compare MemorizedFunc instance before/after pickle roundtrip
-    compare(func_cached.location, func_cached_reloaded.location)
     compare(func_cached.store_backend, func_cached_reloaded.store_backend)
     compare(func_cached, func_cached_reloaded,
-            ignored_attrs=set(['location', 'store_backend', 'timestamp']))
+            ignored_attrs=set(['store_backend', 'timestamp']))
     assert hash(func_cached) == hash(func_cached_reloaded)
 
     # Compare MemorizedResult instance before/after pickle roundtrip
     memorized_result = func_cached.call_and_shelve(1)
     memorized_result_reloaded = pickle.loads(pickle.dumps(memorized_result))
 
-    compare(memorized_result.location, memorized_result_reloaded.location)
     compare(memorized_result.store_backend,
             memorized_result_reloaded.store_backend)
     compare(memorized_result, memorized_result_reloaded,
-            ignored_attrs=set(['location', 'store_backend', 'timestamp']))
+            ignored_attrs=set(['store_backend', 'timestamp']))
     assert hash(memorized_result) == hash(memorized_result_reloaded)

@@ -327,7 +327,9 @@ class StoreBackendMixin(object):
 
     def __repr__(self):
         """Printable representation of the store location."""
-        return self.location
+        return '{cls}(location={location})'.format(
+            cls=self.__class__,
+            location=self.location)
 
 
 class FileSystemStoreBackend(StoreBackendBase, StoreBackendMixin):
@@ -384,11 +386,13 @@ class FileSystemStoreBackend(StoreBackendBase, StoreBackendMixin):
 
         return items
 
-    def configure(self, location, verbose=1, backend_options={}):
+    def configure(self, location, verbose=1, backend_options=None):
         """Configure the store backend.
 
         For this backend, valid store options are 'compress' and 'mmap_mode'
         """
+        if backend_options is None:
+            backend_options = {}
 
         # setup location directory
         self.location = location
@@ -396,14 +400,13 @@ class FileSystemStoreBackend(StoreBackendBase, StoreBackendMixin):
             mkdirp(self.location)
 
         # item can be stored compressed for faster I/O
-        self.compress = backend_options['compress']
+        self.compress = backend_options.get('compress')
 
         # FileSystemStoreBackend can be used with mmap_mode options under
         # certain conditions.
-        mmap_mode = None
-        if 'mmap_mode' in backend_options:
-            mmap_mode = backend_options['mmap_mode']
-            if self.compress and mmap_mode is not None:
+        mmap_mode = backend_options.get('mmap_mode')
+        if mmap_mode is not None:
+            if self.compress:
                 warnings.warn('Compressed items cannot be memmapped in a '
                               'filesystem store. Option will be ignored.',
                               stacklevel=2)
