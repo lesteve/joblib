@@ -119,6 +119,8 @@ class DaskDistributedBackend(ParallelBackendBase, AutoBatchingMixin):
     MIN_IDEAL_BATCH_DURATION = 0.2
     MAX_IDEAL_BATCH_DURATION = 1.0
 
+    supports_timeout = True
+
     def __init__(self, scheduler_host=None, scatter=None,
                  client=None, loop=None, wait_for_workers_timeout=10,
                  **submit_kwargs):
@@ -267,8 +269,8 @@ class DaskDistributedBackend(ParallelBackendBase, AutoBatchingMixin):
 
         ref = weakref.ref(future)  # avoid reference cycle
 
-        def get():
-            return ref().result()
+        def get(timeout=None):
+            return ref().result(timeout=timeout)
 
         future.get = get  # monkey patch to achieve AsyncResult API
         return future

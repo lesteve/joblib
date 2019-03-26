@@ -8,12 +8,14 @@ from time import sleep
 from .. import Parallel, delayed, parallel_backend
 from ..parallel import ThreadingBackend
 from .._dask import DaskDistributedBackend, TimeoutError
+from ..testing import raises
 
 distributed = pytest.importorskip('distributed')
 from distributed import Client, LocalCluster
 from distributed.metrics import time
 from distributed.utils_test import cluster, inc
 from distributed.utils_test import loop # noqa F401
+import tornado.util
 
 
 def noop(*args, **kwargs):
@@ -324,3 +326,24 @@ def test_wait_for_workers_timeout():
     finally:
         client.close()
         cluster.close()
+
+
+def test_parallel_timeout_success():
+    # Check that timeout isn't thrown when function is fast enough
+    cluster = LocalCluster(n_workers=2)
+    client = Client(cluster)  # noqa: F841
+
+    with parallel_backend('dask'):
+        assert len(Parallel(timeout=10)(
+            delayed(sleep)(0.001) for x in range(10))) == 10
+
+
+def test_parallel_timeout_fail():
+    # Check that timeout properly fails when function is too slow
+    cluster = LocalCluster(n_workers=2)
+    client = Client(cluster)  # noqa: F841
+
+    with raises(tornado.util.TimeoutError):
+        with parallel_backend('dask'):
+            Parallel(n_jobs=2, timeout=0.01)(
+                delayed(sleep)(10) for x in range(10))
