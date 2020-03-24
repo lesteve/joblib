@@ -81,10 +81,10 @@ input_list = [1, 2, 1., 2., 1 + 1j, 2. + 1j,
               None,
               gc.collect,
               [1, ].append,
-              # Next 2 sets have unorderable elements in python 3.
+              # Next 2 sets have unorderable elements
               set(('a', 1)),
               set(('a', 1, ('a', 1))),
-              # Next 2 dicts have unorderable type of keys in python 3.
+              # Next 2 dicts have unorderable type of keys
               {'a': 1, 1: 2},
               {'a': 1, 1: 2, 'd': {'a': 1}}]
 
