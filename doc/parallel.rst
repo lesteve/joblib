@@ -336,9 +336,8 @@ Joblib version 0.12 and later are no longer subject to this problem
 thanks to the use of `loky <https://github.com/tomMoral/loky>`_ as the
 new default backend for process-based parallelism.
 
-Prior to Python 3.4 the ``'multiprocessing'`` backend of joblib can only
-use the ``fork`` strategy to create worker processes under non-Windows
-systems. This can cause some third-party libraries to crash or freeze.
+Using the ``fork`` strategy to create worker processes under non-Windows
+systems can cause some third-party libraries to crash or freeze.
 Such libraries include Apple vecLib / Accelerate (used by NumPy under
 OSX), some old version of OpenBLAS (prior to 0.2.10) or the OpenMP
 runtime implementation from GCC which is used internally by third-party
@@ -347,12 +346,11 @@ libraries such as XGBoost, spaCy, OpenCV...
 The best way to avoid this problem is to use the ``'loky'`` backend
 instead of the ``multiprocessing`` backend. Prior to joblib 0.12, it is
 also possible  to get :class:`joblib.Parallel` configured to use the
-``'forkserver'`` start method on Python 3.4 and later. The start method
-has to be configured by setting the ``JOBLIB_START_METHOD`` environment
-variable to ``'forkserver'`` instead of the default ``'fork'`` start
-method. However the user should be aware that using the ``'forkserver'``
-method prevents :class:`joblib.Parallel` to call function interactively
-defined in a shell session.
+``'forkserver'`` start method. The start method has to be configured by setting
+the ``JOBLIB_START_METHOD`` environment variable to ``'forkserver'`` instead of
+the default ``'fork'`` start method. However the user should be aware that
+using the ``'forkserver'`` method prevents :class:`joblib.Parallel` to call
+function interactively defined in a shell session.
 
 You can read more on this topic in the `multiprocessing documentation
 <https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods>`_.

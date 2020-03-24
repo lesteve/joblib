@@ -56,15 +56,8 @@ def write_test_pickle(to_pickle, args):
     pickle_filename = 'joblib_{}{}_pickle_py{}_np{}{}'.format(
         joblib_version, body, py_version, numpy_version, extension)
 
-    try:
-        joblib.dump(to_pickle, pickle_filename, **kwargs)
-    except Exception as e:
-        # With old python version (=< 3.3.), we can arrive there when
-        # dumping compressed pickle with LzmaFile.
-        print("Error: cannot generate file '{}' with arguments '{}'. "
-              "Error was: {}".format(pickle_filename, kwargs, e))
-    else:
-        print("File '{}' generated successfuly.".format(pickle_filename))
+    joblib.dump(to_pickle, pickle_filename, **kwargs)
+    print("File '{}' generated successfuly.".format(pickle_filename))
 
 if __name__ == '__main__':
     import argparse
