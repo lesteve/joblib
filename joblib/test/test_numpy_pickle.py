@@ -15,6 +15,7 @@ import socket
 from contextlib import closing
 import mmap
 from pathlib import Path
+import threading
 
 try:
     import lzma
@@ -130,7 +131,7 @@ def test_compress_level_error(wrong_compress):
 @with_numpy
 @parametrize('compress', [False, True, 0, 3, 'zlib'])
 def test_numpy_persistence(tmpdir, compress):
-    filename = tmpdir.join('test.pkl').strpath
+    filename = tmpdir.join(f'test-{threading.get_ident()}.pkl').strpath
     rnd = np.random.RandomState(0)
     a = rnd.random_sample((10, 2))
     # We use 'a.T' to have a non C-contiguous array.
@@ -581,7 +582,7 @@ def test_compress_string_argument(tmpdir, compress_string):
 @parametrize('compress', [1, 3, 6])
 @parametrize('cmethod', _COMPRESSORS)
 def test_joblib_compression_formats(tmpdir, compress, cmethod):
-    filename = tmpdir.join('test.pkl').strpath
+    filename = tmpdir.join(f'test-{threading.get_ident()}.pkl').strpath
     objects = (np.ones(shape=(100, 100), dtype='f8'),
                range(10),
                {'a': 1, 2: 'b'}, [], (), {}, 0, 1.0)

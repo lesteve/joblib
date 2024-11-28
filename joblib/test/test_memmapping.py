@@ -74,7 +74,7 @@ def inplace_double(args):
 def test_memmap_based_array_reducing(tmpdir):
     """Check that it is possible to reduce a memmap backed array"""
     assert_array_equal = np.testing.assert_array_equal
-    filename = tmpdir.join('test.mmap').strpath
+    filename = tmpdir.join(f'test-{threading.get_ident()}.mmap').strpath
 
     # Create a file larger than what will be used by a
     buffer = np.memmap(filename, dtype=np.float64, shape=500, mode='w+')
