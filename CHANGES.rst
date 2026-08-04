@@ -4,6 +4,10 @@ Release Notes
 In development
 --------------
 
+- Drop python 3.9 support. The oldest supported Python version
+  is now Python 3.10.
+  https://github.com/joblib/joblib/pull/1773
+
 - Fix ``eval_expr`` (used to evaluate the ``pre_dispatch`` argument of
   ``Parallel``) to raise a ``ValueError`` as documented instead of leaking a
   ``ZeroDivisionError`` for expressions that divide or take a modulo by zero.
