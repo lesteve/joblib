@@ -61,11 +61,9 @@ jobs:
         PYTHON_VERSION: ["oldest_supported", "3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
           ######################################################
-          #### Use the two latest versions of free-threaded ####
+          #### Use the stable versions of free-threaded.    ####
+          #### They will run with pytest-run-parallel       ####
           ######################################################
-          - name: python3.13-free-threaded
-            os: 'ubuntu-latest'
-            PYTHON_VERSION: "free-threaded-3.13"
           - name: python3.14-free-threaded
             os: 'ubuntu-latest'
             PYTHON_VERSION: "free-threaded-3.14"

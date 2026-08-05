@@ -9,6 +9,7 @@
 
 set -xe
 
+ORIGINAL_PYTHON_VERSION=$PYTHON_VERSION
 CLOUDPICKLE="cloudpickle"
 NUMPY="numpy"
 DISTRIBUTED="distributed"
@@ -59,6 +60,12 @@ if [[ "$COVERAGE" == "true" ]]; then
     PIP_INSTALL_PACKAGES="$PIP_INSTALL_PACKAGES coverage pytest-cov"
 fi
 
+# pytest-run-parallel is used to run the same test in parallel on free-threaded
+# test runs, to catch thread-safety issues:
+if [[ "$ORIGINAL_PYTHON_VERSION" == free-threaded* ]]; then
+    PIP_INSTALL_PACKAGES="$PIP_INSTALL_PACKAGES pytest-run-parallel"
+fi
+
 pip install $PIP_INSTALL_PACKAGES
 
 if [[ "$NO_LZMA" == "true" ]]; then
@@ -77,4 +84,6 @@ if [[ "$CYTHON" == "true" ]]; then
     cd ../../..
 fi
 
+# Can't just install '.[test]' because, for example, we want some runs to omit
+# NumPy:
 pip install -v .
