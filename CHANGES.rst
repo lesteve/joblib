@@ -1,8 +1,8 @@
 Release Notes
 =============
 
-In development
---------------
+Release 1.6.0 - 2026/08/31
+--------------------------
 
 - Fix caching of functions whose source cannot be retrieved, such as functions
   defined in a notebook cell. Their identity fell back to
